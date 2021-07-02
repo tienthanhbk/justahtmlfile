@@ -1,0 +1,158 @@
+<html>
+    <!-- <script src="path/to/chartjs/dist/chart.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <body>
+        <div id="overview">
+            <h3>Viet Nam</h3>
+
+            <div>
+                <h4 id="overview-updated-time"></h3>
+            </div>
+
+            <div>
+                <h4 id="overview-confirmed-numb"></h3>
+            </div>
+
+            <div>
+                <h4 id="overview-recovered-numb"></h3>
+            </div>
+
+            <div>
+                <h4 id="overview-deadths-numb"></h3>
+            </div>
+        </div>
+        <div class="chart" >
+            <canvas id="chart-inflected" width="100" height="50"></canvas>
+            <canvas id="chart-recovered" width="100" height="50"></canvas>
+            <canvas id="chart-deadths" width="100" height="50"></canvas>
+        </div>
+        <div class="areas-case">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tỉnh Thành</th>
+                        <th>Số ca khỏi</th>
+                        <th>Số ca đang điều trị</th>
+                        <th>Số ca tử vong</th>
+                        <th>Tổng số ca</th>
+                    </tr>
+                </thead>
+                <tbody id="areatable">
+                    
+                </tbody>
+            </table>
+        </div>
+    </body>
+    <script>
+        // Basic info
+        const apiGetOverview = 'https://api.apify.com/v2/key-value-stores/ZsOpZgeg7dFS1rgfM/records/LATEST'
+        fetch(apiGetOverview, {
+            method: 'GET'
+        }).then(res => {
+            return res.json()
+        }).then(json => {
+            document.getElementById('overview-updated-time').innerHTML = 'Updated time: ' + json['lastUpdatedAtSource']
+            document.getElementById('overview-confirmed-numb').innerHTML = 'Confirmed: ' + json['infected']
+            document.getElementById('overview-recovered-numb').innerHTML = 'Recovered: ' + json['recovered']
+            document.getElementById('overview-deadths-numb').innerHTML = 'Deadths: ' + json['deceased']
+        })
+
+        // Chart
+        var showChart = (element, datekeys, numbs, data_label, color) => {
+            
+            const inflectedChard = new Chart(
+                element,
+                {
+                    type: 'line',
+                    data: {
+                        labels: datekeys,
+                        datasets: [{
+                            label: data_label,
+                            backgroundColor: color == null ? 'rgb(255, 99, 132)' : color,
+                            borderColor: color == null ? 'rgb(255, 99, 132)' : color,
+                            data: numbs,
+                        }]
+                    },
+                    options: {}
+                }
+            )
+        }
+        // Get data of chart
+        const apiGetSpotsWeeks = 'https://api.quarantine.country/api/v1/spots/week?region=vietnam'
+        
+        fetch(apiGetSpotsWeeks, {
+            method: 'GET'
+        }).then(res => {
+            return res.json()
+        }).then(json => {
+            var datekeys = []
+            var numb_confirmed = []
+            var numb_recovered = []
+            var numb_deadth = []
+            
+
+            console.log(json)
+            var lastdayCases = 0
+            for(var key in json['data']) {
+                datekeys.unshift(key)   
+            }
+
+            datekeys.forEach(key => {
+                console.log(key)
+                numb_confirmed.push(json['data'][key]['total_cases'])
+                numb_recovered.push(json['data'][key]['recovered'])
+                numb_deadth.push(json['data'][key]['deaths'])
+            })
+
+            showChart(document.getElementById('chart-inflected'), datekeys, numb_confirmed, "Tổng ca nhiễm", "rgb(252, 3, 3)")
+            showChart(document.getElementById('chart-recovered'), datekeys, numb_recovered, "Tổng ca hồi phục", "rgb(69, 252, 3)")
+            showChart(document.getElementById('chart-deadths'), datekeys, numb_deadth, "Tổng ca tử vong", "rgb(3, 65, 252)")
+
+
+        })
+
+        // Get area codes
+        const apiGetAreaCodes = 'https://api.apify.com/v2/key-value-stores/p3nS2Q9TUn6kUOriJ/records/LATEST'
+        var mapCode2Name = {}
+        fetch(apiGetAreaCodes, {
+            method: 'GET'
+        }).then(res => {
+            return res.json()
+        }).then(json => {
+            json['key'].forEach(item => {
+                mapCode2Name[item['hec-key']] = item['name']
+            })
+            console.log(mapCode2Name)
+
+            // Show citi/province information
+            const apiGetAreaInfo = 'https://api.apify.com/v2/key-value-stores/ZsOpZgeg7dFS1rgfM/records/LATEST'
+            fetch(apiGetAreaInfo, {
+                method: 'GET'
+            }).then(res => {
+                return res.json()
+            }).then(json => {
+                console.log(json)
+
+                var tableBodyDOM = document.getElementById("areatable")
+
+                json['detail'].forEach(detail => {
+                    console.log(detail)
+                    
+                    var row = tableBodyDOM.insertRow(-1)
+
+                    var cell1 = row.insertCell(0);
+                    var cell2 = row.insertCell(1);
+                    var cell3 = row.insertCell(2);
+                    var cell4 = row.insertCell(3);
+                    var cell5 = row.insertCell(4);
+
+                    cell1.innerHTML = mapCode2Name[detail['hc-key']].replace('-', ' ').toUpperCase()
+                    cell2.innerHTML = detail['socakhoi']
+                    cell3.innerHTML = detail['socadangdieutri']
+                    cell4.innerHTML = detail['socatuvong']
+                    cell5.innerHTML = detail['socakhoi'] + detail['socadangdieutri'] + detail['socatuvong']
+                })
+            })
+        })
+    </script>
+</html>
